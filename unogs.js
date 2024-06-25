@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import fs from 'fs';
 
 (async () => {
   const browser = await puppeteer.launch({ headless: false });
@@ -11,6 +12,23 @@ import puppeteer from 'puppeteer';
   );
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const allResults = [];
+
+  page.on('response', async (response) => {
+    const url = response.url();
+    if (url.includes('search?')) {
+      try {
+        const data = await response.json();
+        if (data.results) {
+          allResults.push(...data.results);
+          console.log(allResults);
+        }
+      } catch (error) {
+        console.error('Error processing response:', error);
+      }
+    }
+  });
 
   await page.waitForFunction(
     'typeof komodel !== "undefined" && komodel.total() > 0',
@@ -34,5 +52,14 @@ import puppeteer from 'puppeteer';
   }
 
   await browser.close();
-  console.log('first test');
+  console.log('Job Complete');
+
+  const netflixIDArray = allResults.map((result) => result.nfid);
+
+  fs.writeFileSync('all_results.json', JSON.stringify(allResults, null, 2));
+
+  fs.writeFileSync(
+    'netflixIDArray.json',
+    JSON.stringify(netflixIDArray, null, 2)
+  );
 })();
